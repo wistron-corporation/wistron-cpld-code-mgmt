@@ -1,0 +1,182 @@
+#!/bin/bash
+# ---SSCBTLV3257 function table---
+# |    function   |     input    |
+# |      table    |  OE#  |  S   |
+# |      A=B1     |   L   |  L   |
+# |      A=B2     |   L   |  H   | <--- connect BMC
+# --------------------------------
+
+set -eo pipefail
+
+cpld_active_dir='/var/lib/wistron-cpld-code-mgmt'
+cpld_active_path='/var/lib/wistron-cpld-code-mgmt/cpld'
+cpld_release_path='/etc/cpld-release'
+dev_jtag_name='/dev/jtag1'
+default_cpld_version='VERSION_ID=CPLD-v1.0-default'
+old_version=''
+debug_level=3
+frequency=100
+is_init=0
+
+update_fw() {
+  ret=0
+  old_media_dir=$(find /media -type d -name "cpld-*")
+
+  echo "svf -d $debug_level -n $dev_jtag_name -f $frequency -p $svf_file_path" || ret=$?
+  if [ $ret -ne 0 ]; then
+    echo "Update CPLD firmware fail!"
+    return $ret
+  fi
+
+  wait
+
+  create_new_media_cpld
+  delete_old_media_cpld
+
+  return 0
+}
+
+create_new_media_cpld() {
+  ret=0
+  media_path="/media/cpld-$version/"
+  tmp_images_dir="/tmp/images/$version/"
+  manifest_path="/tmp/images/$version/MANIFEST"
+  tmp_cpld_release_path="/tmp/images/$version/cpld-release"
+
+  # Create directory of the active cpld link 
+  if [ ! -d $cpld_active_dir ]; then
+    mkdir -p $cpld_active_dir
+    echo "Create $cpld_active_dir"
+  fi
+
+  # Create directory /media/cpld-$version
+  if [ ! -d $media_path ]; then
+    mkdir -p $media_path
+    echo "Create $media_path"
+
+    update_file_cpld_release
+    create_symlink
+  fi
+}
+
+# Copy /tmp/images/$version/MANIFEST to be file "cpld-release"
+update_file_cpld_release() {
+  ret=0
+
+  # For initializing file : cpld-release
+  if [ $is_init == "1" ]; then
+    # Step 1: create /var/lib/wistron-cpld-code-mgmt/cpld-release if it's not exist
+    if [ ! -e "$cpld_active_dir/cpld-release" ]; then
+      echo -e $default_cpld_version > "$cpld_active_dir/cpld-release"
+      echo "Create $cpld_active_dir/cpld-release"
+    fi
+
+    # Step 2: copy /var/lib/wistron-cpld-code-mgmt/cpld-release to /media/cpld-$version
+    cp "$cpld_active_dir/cpld-release" $media_path || ret=$?
+    if [ $ret -eq 0 ]; then
+      echo "Copy $cpld_active_dir/cpld-release to $media_path"
+    fi
+
+    # Step 3: copy /var/lib/wistron-cpld-code-mgmt/cpld-release to /etc/cpld-release
+    cp "$cpld_active_dir/cpld-release" $cpld_release_path || ret=$?
+    if [ $ret -eq 0 ]; then
+      echo "Copy $cpld_active_dir/cpld-release to $cpld_release_path"
+    fi
+
+    # Step 4: copy /var/lib/wistron-cpld-code-mgmt/$version to /media/cpld-$version
+    if [ -e "$cpld_active_dir/$version" ]; then
+      cp "$cpld_active_dir/$version" $media_path || ret=$?
+      if [ $ret -eq 0 ]; then
+        echo "Copy $cpld_active_dir/$version to $media_path"
+      fi
+    fi
+
+    return $ret
+  fi
+
+  # Copy MANIFEST to be file "cpld-release"
+  cp $manifest_path $tmp_cpld_release_path
+  echo "Copy $manifest_path to $tmp_cpld_release_path"
+  
+  cp $tmp_cpld_release_path $cpld_release_path
+  echo "Copy $tmp_cpld_release_path to $cpld_release_path"
+  
+  cp $tmp_cpld_release_path $cpld_active_dir
+  echo "Copy $tmp_cpld_release_path to $cpld_active_dir"
+
+  mv $tmp_cpld_release_path $media_path
+  echo "Move $tmp_cpld_release_path to $media_path"
+  
+  # Delete /tmp/images/$version
+  if [ -d $tmp_images_dir ]; then
+    rm -rf $tmp_images_dir
+    echo "Delete $tmp_images_dir"
+  fi
+}
+
+# Create active CPLD symlink
+create_symlink() {
+  if [ -h $cpld_active_path ]; then
+    rm -f $cpld_active_path
+    echo "Delete symlink $cpld_active_path"
+  fi
+
+  touch $cpld_active_path
+  ln -sf $media_path $cpld_active_path
+  echo "Create symlink $cpld_active_path -> $media_path"
+  
+  # Delete not in use symlink
+  if [ -h "$media_path/cpld-$version" ]; then
+    rm "$media_path/cpld-$version"
+    echo "Delete $media_path/cpld-$version"
+  fi
+}
+
+# Delete old version of files
+delete_old_media_cpld() {
+  echo "old_media_dir = $old_media_dir"
+  if [ -d $old_media_dir ]; then
+    local old_version=$(echo $old_media_dir | cut -d '-' -f 2)
+    rm -f "$cpld_active_dir/$old_version"
+    echo "Delete $cpld_active_dir/$old_version"
+
+    rm -rf $old_media_dir
+    echo "Delete $old_media_dir"
+  fi
+}
+
+# Get CPLD firmware version
+get_cpld_version() {
+  # for initial, to do...
+  version="1879c81c";
+
+  # if reboot bmc, version will get from the filename of /var/lib/wistron-cpld-code-mgmt/$version 
+  if [ -d $cpld_active_dir ]; then
+    local active_files=$(ls $cpld_active_dir | tr " ")
+    for file in $active_files
+    do 
+      if [[ $file != "cpld"* ]]; then
+        version=$(echo $file | cut -d '-' -f 2)
+      fi
+    done
+  fi
+
+  echo "Get version $version"
+  return 0
+}
+
+case "$1" in
+  fw)
+    version=$2
+    update_fw
+    ;;
+  init)
+    is_init=$2
+    get_cpld_version
+    create_new_media_cpld
+    ;;
+  *)
+    echo "Invalid argument"
+    exit 1
+    ;;
+esac

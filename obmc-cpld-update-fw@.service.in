@@ -1,0 +1,8 @@
+[Unit]
+Description=Update CPLD Firmware.
+
+[Service]
+ExecStart=/usr/bin/obmc-cpld-update fw %i
+SyslogIdentifier=obmc-cpld-update-fw
+Type=oneshot
+RemainAfterExit=no

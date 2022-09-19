@@ -1,0 +1,11 @@
+[Unit]
+Description=Update CPLD Firmware initial.
+
+[Service]
+ExecStart=/usr/bin/obmc-cpld-update init "1"
+SyslogIdentifier=obmc-cpld-update-init
+Type=oneshot
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target
