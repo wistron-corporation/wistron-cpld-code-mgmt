@@ -190,7 +190,10 @@ void ItemUpdater::processCPLDSvf()
             // for example /media/cpld-2a1022fe.
             fs::path releaseFile(CPLD_RELEASE_FILE);
             auto cpldRelease = iter.path() / CPLD_RELEASE_FILE_NAME;
-
+            
+            // Get id from iter.path
+            auto id = iter.path().native().substr(CPLD_SVF_PREFIX_LEN);
+            
             if (!fs::is_regular_file(cpldRelease))
             {
                 error("Failed to read cpldRelease {RELEASE}", "RELEASE", std::string(cpldRelease));
@@ -199,7 +202,6 @@ void ItemUpdater::processCPLDSvf()
                 // call to delete it as this version may be corrupted. 
                 // The worst that can happen is that
                 // erase() is called with an non-existent id and returns.
-                auto id = iter.path().native().substr(CPLD_SVF_PREFIX_LEN);
                 ItemUpdater::erase(id);
                 continue;
             }
@@ -210,14 +212,10 @@ void ItemUpdater::processCPLDSvf()
                 error("Failed to read version from cpldRelease");
                 // Try to delete the version, same as above if the
                 // CPLD_SVF_PREFIX_LEN does not exist.
-                
-                auto id = iter.path().native().substr(CPLD_SVF_PREFIX_LEN);
                 ItemUpdater::erase(id);
                 continue;
             }
-
-            auto id = VersionClass::getId(version);
-
+            
             auto purpose = server::Version::VersionPurpose::CPLD;
 
             // Read os-release from /etc/ to get the CPLD extended version
