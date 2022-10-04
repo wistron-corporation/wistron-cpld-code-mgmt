@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
 
     bus.attach_event(loop.get(), SD_EVENT_PRIORITY_NORMAL);
 
-    CLI::App app{"OpenPOWER host firmware manager"};
+    CLI::App app{"CPLD firmware manager"};
     
     CLI11_PARSE(app, argc, argv);
 

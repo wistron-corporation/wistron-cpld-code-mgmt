@@ -48,7 +48,7 @@ class ItemUpdater : public ItemUpdaterInherit
                      std::bind(std::mem_fn(&ItemUpdater::createActivation),
                                this, std::placeholders::_1))
     {
-        processCPLDSvf();
+        processCPLDSvf(false);
 
         // Emit deferred signal.
         emit_object_added();
@@ -69,9 +69,13 @@ class ItemUpdater : public ItemUpdaterInherit
     void freePriority(uint8_t value, const std::string& versionId);
 
     /**
-     * @brief Create and populate the active PNOR Version.
+     *  @brief Create and populate the active PNOR Version.
+     * 
+     *  @param[in] isInitial - For initail version setting.
+     * 
+     *  @return None
      */
-    void processCPLDSvf();
+    void processCPLDSvf(const bool& isInitial);
 
     /** @brief Deletes version
      *

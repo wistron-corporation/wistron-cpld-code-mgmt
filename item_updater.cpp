@@ -155,7 +155,7 @@ void ItemUpdater::createActivation(sdbusplus::message_t& m)
     return;
 }
 
-void ItemUpdater::processCPLDSvf()
+void ItemUpdater::processCPLDSvf(const bool& isInitial)
 {
     // Check MEDIA_DIR and create if it does not exist
     try
@@ -173,7 +173,8 @@ void ItemUpdater::processCPLDSvf()
 
     // Read os-release from /etc/ to get the functional CPLD version
     auto functionalVersion = VersionClass::getCPLDVersion(CPLD_RELEASE_FILE);
-
+    auto isFunctional = false;
+    
     // Read pnor.toc from folders under /media/
     // to get Active Software Versions.
     for (const auto& iter : std::filesystem::directory_iterator(MEDIA_DIR))
@@ -193,7 +194,12 @@ void ItemUpdater::processCPLDSvf()
             
             // Get id from iter.path
             auto id = iter.path().native().substr(CPLD_SVF_PREFIX_LEN);
-            
+
+            if (isInitial)
+            {
+                std::filesystem::copy_file(CPLD_RELEASE_FILE, std::string(iter.path()) + "/" + CPLD_RELEASE_FILE_NAME);
+            }
+
             if (!fs::is_regular_file(cpldRelease))
             {
                 error("Failed to read cpldRelease {RELEASE}", "RELEASE", std::string(cpldRelease));
@@ -221,7 +227,6 @@ void ItemUpdater::processCPLDSvf()
             // Read os-release from /etc/ to get the CPLD extended version
             std::string extendedVersion = "";
             auto path = fs::path(SOFTWARE_OBJPATH) / id;
-            auto isFunctional = false;
             
             // Create functional association if this is the functional
             // version
@@ -295,6 +300,35 @@ void ItemUpdater::processCPLDSvf()
     {
         updateFunctionalAssociation(id);
     }
+
+    if (!isFunctional)
+    {
+        // If there is no functional version found, read the /etc/os-release and
+        // create rofs-<versionId>-functional under MEDIA_DIR, then call again
+        // processBMCImage() to create the D-Bus interface for it.
+        auto version = VersionClass::getCPLDVersion(CPLD_RELEASE_FILE);
+        auto id = VersionClass::getId(version);
+        auto versionFileDir = CPLD_SVF_PREFIX + id;
+        try
+        {
+            if (!fs::is_directory(versionFileDir))
+            {
+                fs::create_directories(versionFileDir);
+            }
+
+            if (!(fs::exists(CPLD_ACTIVE_DIR) && fs::is_symlink(CPLD_ACTIVE_DIR)))
+            {
+                fs::create_directory_symlink(versionFileDir, CPLD_ACTIVE_DIR);
+            }
+            
+            ItemUpdater::processCPLDSvf(true);
+        }
+        catch (const std::exception& e)
+        {
+            error("Exception during processing: {ERROR}", "ERROR", e);
+        }
+    }
+
     return;
 }
 
