@@ -1,11 +1,4 @@
 #!/bin/bash
-# ---SSCBTLV3257 function table---
-# |    function   |     input    |
-# |      table    |  OE#  |  S   |
-# |      A=B1     |   L   |  L   |
-# |      A=B2     |   L   |  H   | <--- connect BMC
-# --------------------------------
-
 set -eo pipefail
 
 cpld_active_dir='/var/lib/wistron-cpld-code-mgmt'
@@ -13,8 +6,7 @@ cpld_active_path='/var/lib/wistron-cpld-code-mgmt/cpld'
 cpld_release_path='/etc/cpld-release'
 dev_jtag_name='/dev/jtag0'
 old_version=''
-debug_level=3
-frequency=1000000
+frequency=100000 # Max is 109550 Hz
 is_init=0
 
 update_fw() {
@@ -22,13 +14,11 @@ update_fw() {
   old_media_dir=$(find /media -type d -name "cpld-*")
   svf_file_path=$(find /tmp/images/$version/ -name "*.svf")
   
-  echo "svf -d $debug_level -n $dev_jtag_name -f $frequency -p $svf_file_path" || ret=$?
+  svf -s -f $frequency -n $dev_jtag_name -p $svf_file_path || ret=$?
   if [ $ret -ne 0 ]; then
     echo "Update CPLD firmware fail!"
     return $ret
   fi
-
-  wait
 
   create_new_media_cpld
   delete_old_media_cpld
@@ -131,25 +121,13 @@ delete_old_media_cpld() {
 
 # Get CPLD firmware version
 get_cpld_fw_version() {
-
-  # if reboot bmc, version will get from the filename of /var/lib/wistron-cpld-code-mgmt/$version 
-  if [ -d $cpld_active_dir ]; then
-    local active_files=$(ls $cpld_active_dir | tr " ")
-    for file in $active_files
-    do 
-      if [[ $file != "cpld"* ]]; then
-        version=$(echo $file | cut -d '-' -f 2)
-      fi
-    done
-  else
-    version_major_minor_tmp=$(i2cget -y 4 0x41 0x00)
-    version_major_tmp=$(echo $version_major_minor_tmp | cut -c 3)
-    version_major=$((16#$((0x$version_major_tmp & 0x7))))
-    version_minor=$((16#$(echo $version_major_minor_tmp | cut -c 4)))
-    version_maint=$((16#$(i2cget -y 4 0x41 0x01 | cut -c 3-4)))
-    default_cpld_version="VERSION_ID=$version_major.$version_minor.$version_maint"
-  fi
-
+  version_major_minor_tmp=$(i2cget -y 4 0x41 0x00)
+  version_major_tmp=$(echo $version_major_minor_tmp | cut -c 3)
+  version_major=$((0x$version_major_tmp & 0x7))
+  version_minor=$(echo $version_major_minor_tmp | cut -c 4)
+  version_maint=$(i2cget -y 4 0x41 0x01 | cut -c 3-4)
+  default_cpld_version="VERSION_ID=$version_major.$version_minor.$version_maint"
+  version="$version_major.$version_minor.$version_maint"
   echo "Get CPLD firmware version $version"
   return 0
 }
