@@ -195,7 +195,7 @@ void ItemUpdater::processCPLDSvf(const bool& isInitial)
             // Get id from iter.path
             auto id = iter.path().native().substr(CPLD_SVF_PREFIX_LEN);
 
-            if (isInitial)
+            if (isInitial && !fs::exists(std::string(iter.path()) + "/" + CPLD_RELEASE_FILE_NAME))
             {
                 std::filesystem::copy_file(CPLD_RELEASE_FILE, std::string(iter.path()) + "/" + CPLD_RELEASE_FILE_NAME);
             }
@@ -303,9 +303,9 @@ void ItemUpdater::processCPLDSvf(const bool& isInitial)
 
     if (!isFunctional)
     {
-        // If there is no functional version found, read the /etc/os-release and
-        // create rofs-<versionId>-functional under MEDIA_DIR, then call again
-        // processBMCImage() to create the D-Bus interface for it.
+        // If there is no functional version found, read the /etc/cpld-release and
+        // create <versionId> under MEDIA_DIR, then call again
+        // processCPLDSvf() to create the D-Bus interface for it.
         auto version = VersionClass::getCPLDVersion(CPLD_RELEASE_FILE);
         auto id = VersionClass::getId(version);
         auto versionFileDir = CPLD_SVF_PREFIX + id;
