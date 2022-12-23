@@ -10,8 +10,6 @@ Packages the .svf and MANIFEST together in a tarball
 usage: gen-cpld-tar [OPTION] <SVF FILE>...
 
 Options:
-   -o, --out <file>       Specify destination file. Defaults to
-                          `pwd`/obmc-cpld.tar.gz if unspecified.
    -m, --machine <name>   Optionally specify the target machine name of this
                           .svf.
    -v, --version <name>   Specify the version of CPLD .svf file
@@ -25,10 +23,6 @@ version=""
 while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
-    -o|--out)
-      outfile="$2"
-      shift 2
-      ;;
     -m|--machine)
       machine="$2"
       shift 2
@@ -39,12 +33,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       echo "$help"
-      exit
+      exit 0
       ;;
     -*)
       echo "Unrecognised option $1"
       echo "$help"
-      exit
+      exit 
       ;;
     *)
       file="$1"
@@ -64,13 +58,7 @@ if [[ -z $version ]]; then
   exit 1
 fi
 
-if [[ -z $outfile ]]; then
-  outfile=`pwd`/obmc-cpld.tar.gz
-else
-  if [[ $outfile != /* ]]; then
-    outfile=`pwd`/$outfile
-  fi
-fi
+outfile=`pwd`/"$machine-CPLD-$version.tar"
 
 scratch_dir=`mktemp -d`
 # Remove the temp directory on exit.
