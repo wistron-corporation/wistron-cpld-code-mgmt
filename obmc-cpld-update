@@ -45,7 +45,7 @@ update_file_cpld_release() {
 setup_cpld_release() {
   ret=0
   # Remove all old /media/* files to let DBus to create new /media/* files 
-  rm -rf "/media/*"
+  rm -rf /media/*
 
   # Create directory /var/lib/wistron-cpld-code-mgmt
   rm -rf $cpld_active_dir

@@ -396,7 +396,7 @@ bool ItemUpdater::isVersionFunctional(const std::string& versionId)
     }
 
     std::filesystem::path activeCPLD =
-        std::filesystem::read_symlink(PERSIST_DIR + std::string("/cpld"));
+        std::filesystem::read_symlink(CPLD_ACTIVE_DIR);
 
     if (!std::filesystem::is_directory(activeCPLD))
     {
