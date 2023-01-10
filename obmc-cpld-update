@@ -67,8 +67,7 @@ setup_cpld_release() {
 # Get CPLD firmware version
 get_cpld_fw_version() {
   version_major_minor_tmp=$(i2cget -y 4 0x41 0x00)
-  version_major_tmp=$(echo $version_major_minor_tmp | cut -c 3)
-  version_major=$((0x$version_major_tmp & 0x7))
+  version_major=$(echo $version_major_minor_tmp | cut -c 3)
   version_minor=$(echo $version_major_minor_tmp | cut -c 4)
   version_maint=$(i2cget -y 4 0x41 0x01 | cut -c 3-4)
   default_cpld_version="VERSION_ID=$version_major.$version_minor.$version_maint"
