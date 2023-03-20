@@ -8,6 +8,21 @@ dev_jtag_name='/dev/jtag0'
 old_version=''
 frequency=100000 # Max is 109550 Hz
 is_init=0
+gpio_base=$(cat /sys/devices/platform/ahb/ahb:apb/1e780000.gpio/gpio/*/base)
+gpio_path="/sys/class/gpio"
+
+active_cpld_reset()
+{
+    gpioum=$(($gpio_base + 123))
+    if [ ! -d $gpio_path/gpio$gpio_num ];
+    then
+        echo $gpio_num > $gpio_path/export
+        echo 1 > $gpio_path/gpio$gpio_num/active_low
+    fi
+    
+    echo "Set GPIOP3(RST_CPLD_SYS_N) low."
+    echo low > $gpio_path/gpio$gpio_num/direction
+}
 
 update_fw() {
   ret=0
@@ -19,6 +34,9 @@ update_fw() {
     echo "Update CPLD firmware fail!"
     return $ret
   fi
+  
+  echo "test"
+  active_cpld_reset
   
   return 0
 }
